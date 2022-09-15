@@ -16,6 +16,12 @@ pub trait SnakeBehavior {
     fn make_move(&mut self, level: &mut GameLevel) -> Result<(), GameError>;
     fn direction(&self) -> MovementDirection;
     fn set_direction(&mut self, new_direction: MovementDirection) -> Result<(), GameError>;
+    /// total snake length (with head)
+    fn len(&self) -> usize;
+}
+
+pub trait FruitBehavior {
+    fn put_on(&mut self, level: &mut GameLevel) -> Result<(), GameError>;
 }
 
 pub struct GameLevel {
@@ -187,6 +193,9 @@ impl SnakeBehavior for SnakeUnbounded {
             Right => self.try_move_to(&siblings.right),
         };
 
+        // normal movement - true, set to false on snake grow.
+        let mut delete_tail_end = true;
+
         match movement_result {
             MovementResult::Ok(tile) => {
                 let tile = level
@@ -200,6 +209,7 @@ impl SnakeBehavior for SnakeUnbounded {
                     .get_tile_mut(tile.get_index())
                     .ok_or(GameError::InvalidInternalState)?;
                 self.grow_on(tile);
+                delete_tail_end = false;
             }
             MovementResult::SnakeCollision => return Err(GameError::GameOver),
             // "globe" level behavior logic
@@ -221,14 +231,16 @@ impl SnakeBehavior for SnakeUnbounded {
         }
 
         // delete last segment
-        let tail_end_index = self
-            .tail
-            .pop_back()
-            .ok_or(GameError::InvalidInternalState)?;
-        let tail_end = level
-            .get_tile_mut(tail_end_index)
-            .ok_or(GameError::InvalidInternalState)?;
-        tail_end.set_to(TileType::Empty);
+        if delete_tail_end {
+            let tail_end_index = self
+                .tail
+                .pop_back()
+                .ok_or(GameError::InvalidInternalState)?;
+            let tail_end = level
+                .get_tile_mut(tail_end_index)
+                .ok_or(GameError::InvalidInternalState)?;
+            tail_end.set_to(TileType::Empty);
+        }
 
         Ok(())
     }
@@ -242,6 +254,62 @@ impl SnakeBehavior for SnakeUnbounded {
             return Err(GameError::GameOver);
         }
         self.movement_direction = new_direction;
+        Ok(())
+    }
+
+    fn len(&self) -> usize {
+        self.tail.len()
+    }
+}
+
+pub struct FruitRandomLimited {
+    limit: usize,
+    chance: f64,
+}
+
+impl FruitRandomLimited {
+    pub fn new(limit: usize, chance: f64) -> Self {
+        if !(0.01..=1.0).contains(&chance) {
+            panic!("Invalid configuration: chance must be in range of 0.01 - 1.00")
+        }
+
+        Self { limit, chance }
+    }
+}
+
+impl FruitBehavior for FruitRandomLimited {
+    fn put_on(&mut self, level: &mut GameLevel) -> Result<(), GameError> {
+        use rand::prelude::*;
+
+        // count fruits on level
+        let count_fruits = level
+            .level()
+            .iter()
+            .filter(|t| matches!(t.tile_type(), TileType::Fruit))
+            .count();
+
+        // if under limit then draw a chance to put one fruit
+        if count_fruits < self.limit {
+            let draw = thread_rng().gen_range(0.01..1.0);
+            if self.chance >= draw {
+                let empty_tiles = level
+                    .level()
+                    .iter()
+                    .filter(|t| matches!(t.tile_type(), TileType::Empty))
+                    .collect::<Vec<_>>();
+
+                // there is nowhere to put fruit
+                if empty_tiles.is_empty() {
+                    return Ok(());
+                }
+
+                // put fruit on empty field
+                let random_index = thread_rng().gen_range(0..empty_tiles.len());
+                let tile = level.get_tile_mut(random_index).unwrap();
+                tile.set_to(TileType::Fruit);
+            }
+        }
+
         Ok(())
     }
 }
@@ -350,6 +418,16 @@ impl GameLevel {
             right,
         }
     }
+
+    // put fruit on arbitrary position
+    // may fail silently
+    pub fn put_fruit(&mut self, x: usize, y: usize) {
+        if let Some(tile) = self.get_tile_mut_on(x, y) {
+            if matches!(tile.tile_type(), TileType::Empty) {
+                tile.set_to(TileType::Fruit);
+            }
+        }
+    }
 }
 
 pub struct TileSiblings<'l> {
@@ -379,7 +457,7 @@ pub struct LevelCoordinates {
 #[cfg(test)]
 mod tests {
     use super::{GameDisplay, GameLevel, SnakeUnbounded, TileType};
-    use crate::snake_game::GameError;
+    use crate::snake_game::SnakeBehavior;
 
     struct GameDisplaySimplePrint;
 
@@ -457,14 +535,18 @@ mod tests {
     }
 
     #[test]
-    fn snake_movement() {
+    fn snake_movement_and_grow() {
         use super::GameError;
         use super::MovementDirection;
         use super::SnakeBehavior;
 
         let mut level = GameLevel::new(20, 10);
         let mut snake = SnakeUnbounded::new(MovementDirection::Right);
-        snake.put_on(&mut level, 6).unwrap();
+        level.put_fruit(5, 8);
+        level.put_fruit(5, 2);
+        snake.put_on(&mut level, 3).unwrap();
+
+        let start_len = snake.len();
 
         let output = GameDisplaySimplePrint.render(&level).unwrap();
         println!("{output}");
@@ -478,6 +560,10 @@ mod tests {
             match s {
                 // go through entire level
                 15 => snake.set_direction(MovementDirection::Up).unwrap(),
+                17 => {
+                    // test grow
+                    assert_eq!(snake.len(), start_len + 1);
+                }
                 30 => snake.set_direction(MovementDirection::Left).unwrap(),
                 45 => snake.set_direction(MovementDirection::Down).unwrap(),
                 // go to collision
