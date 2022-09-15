@@ -456,8 +456,7 @@ pub struct LevelCoordinates {
 
 #[cfg(test)]
 mod tests {
-    use super::{GameDisplay, GameLevel, SnakeUnbounded, TileType};
-    use crate::snake_game::SnakeBehavior;
+    use super::{GameDisplay, GameLevel};
 
     struct GameDisplaySimplePrint;
 
@@ -466,6 +465,7 @@ mod tests {
         type Error = std::convert::Infallible;
 
         fn render(&self, level: &GameLevel) -> Result<Self::Output, Self::Error> {
+            use super::TileType;
             use std::fmt::Write;
 
             let level_box = level.level_coordinates();
@@ -536,9 +536,7 @@ mod tests {
 
     #[test]
     fn snake_movement_and_grow() {
-        use super::GameError;
-        use super::MovementDirection;
-        use super::SnakeBehavior;
+        use super::{GameError, MovementDirection, SnakeBehavior, SnakeUnbounded};
 
         let mut level = GameLevel::new(20, 10);
         let mut snake = SnakeUnbounded::new(MovementDirection::Right);
