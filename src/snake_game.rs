@@ -377,19 +377,30 @@ impl GameLevel {
         self.level.get_mut(index)
     }
 
+    fn is_tile_in_level_bounds(&self, x: usize, y: usize) -> bool {
+        // hide dimensional logic here
+        let d = self.level_coordinates();
+        x <= d.x_max && y <= d.y_max
+    }
+
     pub fn get_tile_on(&self, x: usize, y: usize) -> Option<&Tile> {
-        self.level.get(y * self.width + x)
+        if self.is_tile_in_level_bounds(x, y) {
+            self.level.get(y * self.width + x)
+        } else {
+            None
+        }
     }
 
     pub fn get_tile_mut_on(&mut self, x: usize, y: usize) -> Option<&mut Tile> {
-        self.level.get_mut(y * self.width + x)
+        if self.is_tile_in_level_bounds(x, y) {
+            self.level.get_mut(y * self.width + x)
+        } else {
+            None
+        }
     }
 
     pub fn tile_sibling(&self, tile: &Tile, on_position: SiblingPosition) -> Option<&Tile> {
         use SiblingPosition::*;
-
-        // hide dimensional logic here
-        let d = self.level_coordinates();
         let TileXY { x, y } = self.get_tile_position(tile);
 
         match on_position {
@@ -400,13 +411,7 @@ impl GameLevel {
                     None
                 }
             }
-            Down => {
-                if y < d.y_max {
-                    self.get_tile_on(x, y + 1)
-                } else {
-                    None
-                }
-            }
+            Down => self.get_tile_on(x, y + 1),
             Left => {
                 if x > 0 {
                     self.get_tile_on(x - 1, y)
@@ -414,13 +419,7 @@ impl GameLevel {
                     None
                 }
             }
-            Right => {
-                if x < d.x_max {
-                    self.get_tile_on(x + 1, y)
-                } else {
-                    None
-                }
-            }
+            Right => self.get_tile_on(x + 1, y),
         }
     }
 
