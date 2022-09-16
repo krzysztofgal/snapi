@@ -53,6 +53,12 @@ impl GameLevel {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.level
+            .iter_mut()
+            .for_each(|t| t.r#type = TileType::default());
+    }
+
     pub fn level_coordinates(&self) -> LevelCoordinates {
         // max -1 because counting from 0
         LevelCoordinates {
