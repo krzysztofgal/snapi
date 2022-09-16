@@ -1,19 +1,17 @@
 use super::{
     game_level::GameLevel, FruitBehavior, GameDisplay, GameError, MovementDirection, SnakeBehavior,
 };
-pub struct Game<S, F, R> {
+pub struct Game<S, F> {
     snake: S,
     fruit: F,
-    renderer: R,
     level: GameLevel,
 }
 
-impl<S: SnakeBehavior, F: FruitBehavior, R: GameDisplay> Game<S, F, R> {
-    pub fn new(renderer: R, level: GameLevel, snake: S, fruit: F) -> Self {
+impl<S: SnakeBehavior, F: FruitBehavior> Game<S, F> {
+    pub fn new(level: GameLevel, snake: S, fruit: F) -> Self {
         Self {
             snake,
             fruit,
-            renderer,
             level,
         }
     }
@@ -37,8 +35,11 @@ impl<S: SnakeBehavior, F: FruitBehavior, R: GameDisplay> Game<S, F, R> {
         &self.snake
     }
 
-    pub fn render(&self) -> Result<R::Output, R::Error> {
-        self.renderer.render(&self.level)
+    pub fn render<O, E>(
+        &self,
+        renderer: &dyn GameDisplay<S, F, Output = O, Error = E>,
+    ) -> Result<O, E> {
+        renderer.render(&self)
     }
 
     pub fn try_move(&mut self) -> Result<(), GameError> {

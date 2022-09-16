@@ -1,14 +1,15 @@
-use super::{GameDisplay, GameLevel, TileType};
+use super::{FruitBehavior, Game, GameDisplay, SnakeBehavior, TileType};
 
 pub struct GameDisplayToString;
 
-impl GameDisplay for GameDisplayToString {
+impl<S: SnakeBehavior, F: FruitBehavior> GameDisplay<S, F> for GameDisplayToString {
     type Output = String;
     type Error = std::convert::Infallible;
 
-    fn render(&self, level: &GameLevel) -> Result<Self::Output, Self::Error> {
+    fn render(&self, game: &Game<S, F>) -> Result<Self::Output, Self::Error> {
         use std::fmt::Write;
 
+        let level = game.level();
         let level_box = level.level_coordinates();
         let dimensions = level.level_dimensions();
         let tiles = level.level();

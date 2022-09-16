@@ -83,11 +83,12 @@ fn game_loop(app_state: &AppState) -> Result<(), snake_game::GameError> {
     let level = GameLevel::new(40, 20);
     let snake = SnakeUnbounded::new(MovementDirection::Right);
     let fruit = FruitRandomLimited::new(5, 0.1);
-    let mut game = Game::new(GameDisplayToString, level, snake, fruit);
+    let mut game = Game::new(level, snake, fruit);
     game.put_snake(2).unwrap();
 
     // initial render
-    match game.render() {
+    let renderer = GameDisplayToString;
+    match game.render(&renderer) {
         Ok(output) => {
             let mut display = app_state.level_display.blocking_lock();
             *display = output;
@@ -151,7 +152,7 @@ fn game_loop(app_state: &AppState) -> Result<(), snake_game::GameError> {
                 break;
             }
 
-            match game.render() {
+            match game.render(&renderer) {
                 Ok(output) => {
                     let mut display = app_state.level_display.blocking_lock();
                     *display = output;

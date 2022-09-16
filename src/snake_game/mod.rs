@@ -46,9 +46,40 @@ pub trait FruitBehavior {
     fn put_on(&mut self, level: &mut GameLevel) -> Result<(), GameError>;
 }
 
-pub trait GameDisplay {
+pub trait GameDisplay<S: SnakeBehavior, F: FruitBehavior> {
     type Output;
     type Error;
 
-    fn render(&self, game: &GameLevel) -> Result<Self::Output, Self::Error>;
+    fn render(&self, game: &Game<S, F>) -> Result<Self::Output, Self::Error>;
+}
+
+// testing impls
+struct NullSnake;
+impl SnakeBehavior for NullSnake {
+    fn put_on(&mut self, _level: &mut GameLevel, _tail_size: usize) -> Result<(), GameError> {
+        Ok(())
+    }
+
+    fn make_move(&mut self, _level: &mut GameLevel) -> Result<(), GameError> {
+        Ok(())
+    }
+
+    fn direction(&self) -> MovementDirection {
+        MovementDirection::Right
+    }
+
+    fn set_direction(&mut self, _new_direction: MovementDirection) -> Result<(), GameError> {
+        Ok(())
+    }
+
+    fn len(&self) -> usize {
+        0
+    }
+}
+
+struct NullFruit;
+impl FruitBehavior for NullFruit {
+    fn put_on(&mut self, _level: &mut GameLevel) -> Result<(), GameError> {
+        Ok(())
+    }
 }
