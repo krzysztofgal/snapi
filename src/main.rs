@@ -25,6 +25,7 @@ async fn main() {
 async fn handle_snake_display() -> impl IntoResponse {}
 
 #[derive(serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 enum Direction {
     Left,
     Right,
