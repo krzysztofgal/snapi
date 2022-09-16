@@ -1,10 +1,10 @@
-use super::{FruitBehavior, Game, GameDisplay, SnakeBehavior, TileType};
+use super::{FruitBehavior, Game, GameDisplay, GameError, SnakeBehavior, TileType};
 
 pub struct GameDisplayToString;
 
 impl<S: SnakeBehavior, F: FruitBehavior> GameDisplay<S, F> for GameDisplayToString {
     type Output = String;
-    type Error = std::convert::Infallible;
+    type Error = GameError;
 
     fn render(&self, game: &Game<S, F>) -> Result<Self::Output, Self::Error> {
         use std::fmt::Write;
@@ -23,7 +23,7 @@ impl<S: SnakeBehavior, F: FruitBehavior> GameDisplay<S, F> for GameDisplayToStri
             .collect::<String>();
 
         // top wall
-        let _ = write!(output, "#{}#\n\r#", &v_wall);
+        write!(output, "#{}#\n\r#", &v_wall).map_err(|_| GameError::RenderingError)?;
         for (index, tile) in tiles.iter().enumerate() {
             let char = match tile.tile_type() {
                 TileType::Empty => ' ',
@@ -33,13 +33,13 @@ impl<S: SnakeBehavior, F: FruitBehavior> GameDisplay<S, F> for GameDisplayToStri
 
             if index > 0 && index % dimensions.width == 0 {
                 // wall at end of line and start of new line
-                let _ = write!(output, "#\n\r#");
+                write!(output, "#\n\r#").map_err(|_| GameError::RenderingError)?;
             }
 
-            let _ = write!(output, "{}", char);
+            write!(output, "{}", char).map_err(|_| GameError::RenderingError)?;
         }
         // bottom wall
-        let _ = write!(output, "#\n\r#{}#", &v_wall);
+        write!(output, "#\n\r#{}#", &v_wall).map_err(|_| GameError::RenderingError)?;
 
         Ok(output)
     }

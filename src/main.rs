@@ -84,16 +84,14 @@ fn game_loop(app_state: &AppState) -> Result<(), snake_game::GameError> {
     let snake = SnakeUnbounded::new(MovementDirection::Right);
     let fruit = FruitRandomLimited::new(5, 0.1);
     let mut game = Game::new(level, snake, fruit);
-    game.put_snake(2).unwrap();
+    game.put_snake(2)?;
 
-    // initial render
     let renderer = GameDisplayToString;
-    match game.render(&renderer) {
-        Ok(output) => {
-            let mut display = app_state.level_display.blocking_lock();
-            *display = output;
-        }
-        Err(_) => (),
+    // initial render
+    let output = game.render(&renderer)?;
+    {
+        let mut display = app_state.level_display.blocking_lock();
+        *display = output;
     }
 
     let mut move_timer = Instant::now();
@@ -126,6 +124,7 @@ fn game_loop(app_state: &AppState) -> Result<(), snake_game::GameError> {
                 let (_, most_occurrences) = selected_count
                     .iter()
                     .max_by(|(_, a), (_, b)| a.cmp(b))
+                    // unwrap is ok - cannot be empty
                     .unwrap();
                 // drop borrow
                 let most_occurrences = *most_occurrences;
@@ -142,25 +141,16 @@ fn game_loop(app_state: &AppState) -> Result<(), snake_game::GameError> {
                     })
                     .collect::<Vec<_>>();
 
-                // finally pick movement
+                // finally pick movement, unwrap is ok - selected vec cannot be empty
                 let movement = *selected.choose(&mut r).unwrap();
-                game.set_snake_direction(movement).unwrap();
+                game.set_snake_direction(movement)?;
             }
 
-            if game.try_move().is_err() {
-                // restart game
-                break;
-            }
+            game.try_move()?;
 
-            match game.render(&renderer) {
-                Ok(output) => {
-                    let mut display = app_state.level_display.blocking_lock();
-                    *display = output;
-                }
-                Err(_) => break,
-            }
+            let output = game.render(&renderer)?;
+            let mut display = app_state.level_display.blocking_lock();
+            *display = output;
         }
     }
-
-    Ok(())
 }

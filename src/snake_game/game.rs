@@ -39,7 +39,7 @@ impl<S: SnakeBehavior, F: FruitBehavior> Game<S, F> {
         &self,
         renderer: &dyn GameDisplay<S, F, Output = O, Error = E>,
     ) -> Result<O, E> {
-        renderer.render(&self)
+        renderer.render(self)
     }
 
     pub fn try_move(&mut self) -> Result<(), GameError> {

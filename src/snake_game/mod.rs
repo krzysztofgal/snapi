@@ -13,6 +13,7 @@ pub use game_level::{GameLevel, Tile, TileType};
 pub enum GameError {
     GameOver,
     InvalidInternalState,
+    RenderingError,
 }
 
 pub trait SnakeBehavior {
