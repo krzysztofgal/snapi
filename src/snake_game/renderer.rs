@@ -1,8 +1,8 @@
 use super::{GameDisplay, GameLevel, TileType};
 
-pub struct GameDisplaySimplePrint;
+pub struct GameDisplayToString;
 
-impl GameDisplay for GameDisplaySimplePrint {
+impl GameDisplay for GameDisplayToString {
     type Output = String;
     type Error = std::convert::Infallible;
 

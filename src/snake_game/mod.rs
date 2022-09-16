@@ -6,6 +6,7 @@ pub mod snake;
 #[cfg(test)]
 mod tests;
 
+pub use game::Game;
 pub use game_level::{GameLevel, Tile, TileType};
 
 #[derive(Debug)]
@@ -23,7 +24,7 @@ pub trait SnakeBehavior {
     fn len(&self) -> usize;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum MovementDirection {
     Up,
     Down,
@@ -49,5 +50,5 @@ pub trait GameDisplay {
     type Output;
     type Error;
 
-    fn render(&self, level: &GameLevel) -> Result<Self::Output, Self::Error>;
+    fn render(&self, game: &GameLevel) -> Result<Self::Output, Self::Error>;
 }

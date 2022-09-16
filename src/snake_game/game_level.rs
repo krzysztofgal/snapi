@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct GameLevel {
     height: usize,
     width: usize,
@@ -51,12 +52,6 @@ impl GameLevel {
             width,
             level,
         }
-    }
-
-    pub fn reset(&mut self) {
-        self.level
-            .iter_mut()
-            .for_each(|t| t.r#type = TileType::default());
     }
 
     pub fn level_coordinates(&self) -> LevelCoordinates {
@@ -144,8 +139,9 @@ impl GameLevel {
         }
     }
 
-    // put fruit on arbitrary position
+    // put fruit on arbitrary position (intended for tests)
     // may fail silently
+    #[allow(dead_code)]
     pub fn put_fruit(&mut self, x: usize, y: usize) {
         if let Some(tile) = self.get_tile_mut_on(x, y) {
             if matches!(tile.tile_type(), TileType::Empty) {

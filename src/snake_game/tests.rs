@@ -1,9 +1,9 @@
-use super::{renderer::GameDisplaySimplePrint, GameDisplay, GameLevel};
+use super::{renderer::GameDisplayToString, GameDisplay, GameLevel};
 
 #[test]
 fn level_render() {
     let level = GameLevel::new(20, 10);
-    let output = GameDisplaySimplePrint.render(&level).unwrap();
+    let output = GameDisplayToString.render(&level).unwrap();
     println!("{output}");
 
     let expected = "######################\n\r\
@@ -34,12 +34,12 @@ fn snake_movement_and_grow() {
 
     let start_len = snake.len();
 
-    let output = GameDisplaySimplePrint.render(&level).unwrap();
+    let output = GameDisplayToString.render(&level).unwrap();
     println!("{output}");
 
     for s in 0..63 {
         snake.make_move(&mut level).unwrap();
-        let output = GameDisplaySimplePrint.render(&level).unwrap();
+        let output = GameDisplayToString.render(&level).unwrap();
         println!("Step: {s}");
         println!("{output}");
 
