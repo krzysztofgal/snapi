@@ -1,11 +1,12 @@
 pub mod fruit;
 mod game;
 mod game_level;
+pub mod renderer;
 pub mod snake;
 #[cfg(test)]
 mod tests;
 
-use game_level::{GameLevel, TileType};
+pub use game_level::{GameLevel, Tile, TileType};
 
 #[derive(Debug)]
 pub enum GameError {
