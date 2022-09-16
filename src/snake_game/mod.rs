@@ -8,6 +8,7 @@ mod tests;
 
 pub use game::Game;
 pub use game_level::{GameLevel, Tile, TileType};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub enum GameError {
@@ -52,6 +53,17 @@ pub trait GameDisplay<S: SnakeBehavior, F: FruitBehavior> {
     type Error;
 
     fn render(&self, game: &Game<S, F>) -> Result<Self::Output, Self::Error>;
+}
+
+impl Display for GameError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::GameOver => "Game Over",
+            Self::InvalidInternalState => "Game Error: Invalid game state",
+            Self::RenderingError => "Game Error: Rendering Failed",
+        };
+        write!(f, "{s}")
+    }
 }
 
 // testing impls
