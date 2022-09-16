@@ -8,3 +8,7 @@ authors = ["Krzysztof Gał <dev@krzysztofgal.pl>"]
 
 [dependencies]
 rand = "0.8.5"
+axum = "0.5.16"
+hyper = "0.14.20"
+tokio = { version = "1.21.1", features = ["macros", "rt-multi-thread"]}
+serde = { version = "1.0.144", features = ["derive"] }
