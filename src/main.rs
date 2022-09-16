@@ -29,10 +29,24 @@ struct AppState {
 #[tokio::main]
 async fn main() {
     let app_state = Arc::new(AppState::default());
+    let (shutdown_sig, shutdown_recv) = tokio::sync::oneshot::channel::<()>();
 
     let thread_app_state = Arc::clone(&app_state);
     std::thread::spawn(move || loop {
-        let _ = game_loop(thread_app_state.as_ref());
+        use snake_game::GameError;
+
+        println!("New Game");
+        if let Err(err) = game_loop(thread_app_state.as_ref()) {
+            match err {
+                GameError::RenderingError | GameError::InvalidInternalState => {
+                    eprintln!("{err}");
+                    // shutdown server
+                    shutdown_sig.send(()).unwrap();
+                    break;
+                }
+                _ => println!("{err}"),
+            }
+        }
     });
 
     let app = Router::new()
@@ -43,6 +57,10 @@ async fn main() {
     println!("Game server is running at: {LISTEN_ADDR}");
     axum::Server::bind(&LISTEN_ADDR.parse().unwrap())
         .serve(app.into_make_service())
+        .with_graceful_shutdown(async {
+            shutdown_recv.await.ok();
+            println!("Game server shutdown");
+        })
         .await
         .unwrap();
 }
