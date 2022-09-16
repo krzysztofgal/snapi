@@ -140,29 +140,26 @@ impl SnakeBehavior for SnakeUnbounded {
             .get_tile_on(x_center, y_center)
             .ok_or(GameError::InvalidInternalState)?;
 
-        let get_tail_index_on = |on_tile: &Option<&Tile>| -> Result<usize, GameError> {
-            match on_tile {
-                Some(tile) => Ok(tile.get_index()),
-                None => Err(GameError::InvalidInternalState),
-            }
-        };
-
         // set on which tiles snake lives
         let mut tail = Vec::new();
         tail.push(head.get_index());
-        let mut siblings = level.tile_siblings(head);
-        for _ in 0..tail_size {
-            // tail tile needs to be on opposite direction of movement
-            let tail_tile_index = match self.movement_direction {
-                Up => get_tail_index_on(&siblings.down),
-                Down => get_tail_index_on(&siblings.up),
-                Left => get_tail_index_on(&siblings.right),
-                Right => get_tail_index_on(&siblings.left),
-            }?;
 
-            tail.push(tail_tile_index);
-            let tile = level.get_tile(tail_tile_index).unwrap();
-            siblings = level.tile_siblings(tile);
+        // add tail tiles to direction opposite to movement
+        let grow_direction = match self.movement_direction {
+            Up => SiblingPosition::Down,
+            Down => SiblingPosition::Up,
+            Left => SiblingPosition::Right,
+            Right => SiblingPosition::Left,
+        };
+
+        let mut sibling = level.tile_sibling(head, grow_direction);
+        for _ in 0..tail_size {
+            let tail_tile = match sibling {
+                Some(tile) => tile,
+                None => return Err(GameError::InvalidInternalState),
+            };
+            tail.push(tail_tile.get_index());
+            sibling = level.tile_sibling(tail_tile, grow_direction);
         }
 
         // put snake on selected tiles
@@ -184,14 +181,16 @@ impl SnakeBehavior for SnakeUnbounded {
         let head = level
             .get_tile(*head_index)
             .ok_or(GameError::InvalidInternalState)?;
-        let siblings = level.tile_siblings(head);
 
-        let movement_result = match self.movement_direction {
-            Up => self.try_move_to(&siblings.up),
-            Down => self.try_move_to(&siblings.down),
-            Left => self.try_move_to(&siblings.left),
-            Right => self.try_move_to(&siblings.right),
+        let to_sibling = match self.movement_direction {
+            Up => SiblingPosition::Up,
+            Down => SiblingPosition::Down,
+            Left => SiblingPosition::Left,
+            Right => SiblingPosition::Right,
         };
+        let to_tile = level.tile_sibling(head, to_sibling);
+
+        let movement_result = self.try_move_to(&to_tile);
 
         // normal movement - true, set to false on snake grow.
         let mut delete_tail_end = true;
@@ -386,36 +385,42 @@ impl GameLevel {
         self.level.get_mut(y * self.width + x)
     }
 
-    pub fn tile_siblings(&self, tile: &Tile) -> TileSiblings {
+    pub fn tile_sibling(&self, tile: &Tile, on_position: SiblingPosition) -> Option<&Tile> {
+        use SiblingPosition::*;
+
         // hide dimensional logic here
         let d = self.level_coordinates();
         let TileXY { x, y } = self.get_tile_position(tile);
-        let up = if y > 0 {
-            self.get_tile_on(x, y - 1)
-        } else {
-            None
-        };
-        let down = if y < d.y_max {
-            self.get_tile_on(x, y + 1)
-        } else {
-            None
-        };
-        let left = if x > 0 {
-            self.get_tile_on(x - 1, y)
-        } else {
-            None
-        };
-        let right = if x < d.x_max {
-            self.get_tile_on(x + 1, y)
-        } else {
-            None
-        };
 
-        TileSiblings {
-            up,
-            down,
-            left,
-            right,
+        match on_position {
+            Up => {
+                if y > 0 {
+                    self.get_tile_on(x, y - 1)
+                } else {
+                    None
+                }
+            }
+            Down => {
+                if y < d.y_max {
+                    self.get_tile_on(x, y + 1)
+                } else {
+                    None
+                }
+            }
+            Left => {
+                if x > 0 {
+                    self.get_tile_on(x - 1, y)
+                } else {
+                    None
+                }
+            }
+            Right => {
+                if x < d.x_max {
+                    self.get_tile_on(x + 1, y)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -430,11 +435,12 @@ impl GameLevel {
     }
 }
 
-pub struct TileSiblings<'l> {
-    pub up: Option<&'l Tile>,
-    pub down: Option<&'l Tile>,
-    pub left: Option<&'l Tile>,
-    pub right: Option<&'l Tile>,
+#[derive(Copy, Clone)]
+pub enum SiblingPosition {
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
 pub struct TileXY {
