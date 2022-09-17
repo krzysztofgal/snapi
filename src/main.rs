@@ -9,8 +9,9 @@ use axum::{
 };
 use snake_game::MovementDirection;
 use std::collections::HashMap;
+use std::sync::mpsc;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{oneshot, Mutex};
 
 static LISTEN_ADDR: &str = "0.0.0.0:3000";
 static FRAME_TIME: std::time::Duration = std::time::Duration::from_secs(1);
@@ -29,7 +30,8 @@ struct AppState {
 #[tokio::main]
 async fn main() {
     let app_state = Arc::new(AppState::default());
-    let (shutdown_sig, shutdown_recv) = tokio::sync::oneshot::channel::<()>();
+    let (shutdown_sig, shutdown_recv) = oneshot::channel::<()>();
+    let (game_exit_sig, game_exit_recv) = mpsc::channel::<()>();
 
     // game thread
     let thread_app_state = Arc::clone(&app_state);
@@ -37,7 +39,7 @@ async fn main() {
         use snake_game::GameError;
 
         println!("New Game");
-        if let Err(err) = game_loop(thread_app_state.as_ref()) {
+        if let Err(err) = game_loop(thread_app_state.as_ref(), &game_exit_recv) {
             match err {
                 GameError::RenderingError | GameError::InvalidInternalState => {
                     eprintln!("{err}");
@@ -47,6 +49,9 @@ async fn main() {
                 }
                 _ => println!("{err}"),
             }
+        } else {
+            println!("Game thread shutdown.");
+            break;
         }
     });
 
@@ -59,8 +64,33 @@ async fn main() {
     axum::Server::bind(&LISTEN_ADDR.parse().unwrap())
         .serve(app.into_make_service())
         .with_graceful_shutdown(async {
-            shutdown_recv.await.ok();
-            println!("Game server shutdown");
+            use tokio::signal;
+
+            let ctrl_c = async {
+                signal::ctrl_c()
+                    .await
+                    .expect("failed to install Ctrl+C handler");
+            };
+
+            #[cfg(unix)]
+            let terminate = async {
+                signal::unix::signal(signal::unix::SignalKind::terminate())
+                    .expect("failed to install signal handler")
+                    .recv()
+                    .await;
+            };
+
+            #[cfg(not(unix))]
+            let terminate = std::future::pending::<()>();
+
+            tokio::select! {
+                _ = ctrl_c => {},
+                _ = terminate => {},
+                _ = shutdown_recv => {}
+            }
+
+            println!("Game server shutdown...");
+            game_exit_sig.send(()).ok(); // shutdown game thread
         })
         .await
         .unwrap();
@@ -79,7 +109,9 @@ async fn handle_snake_display(Extension(app): Extension<Arc<AppState>>) -> impl 
 enum Direction {
     Left,
     Right,
+    #[serde(alias = "down")]
     Bottom,
+    #[serde(alias = "up")]
     Top,
 }
 
@@ -100,7 +132,10 @@ async fn handle_snake_direction(
     StatusCode::CREATED
 }
 
-fn game_loop(app_state: &AppState) -> Result<(), snake_game::GameError> {
+fn game_loop<T>(
+    app_state: &AppState,
+    end_sig: &mpsc::Receiver<T>,
+) -> Result<(), snake_game::GameError> {
     use snake_game::{
         fruit::FruitRandomLimited, renderer::GameDisplayToString, snake::SnakeUnbounded, Game,
         GameLevel,
@@ -124,6 +159,9 @@ fn game_loop(app_state: &AppState) -> Result<(), snake_game::GameError> {
     let mut move_timer = Instant::now();
 
     loop {
+        if end_sig.try_recv().is_ok() {
+            return Ok(());
+        }
         if move_timer.elapsed() > FRAME_TIME {
             move_timer = Instant::now();
 
@@ -179,5 +217,7 @@ fn game_loop(app_state: &AppState) -> Result<(), snake_game::GameError> {
             let mut display = app_state.level_display.blocking_lock();
             *display = output;
         }
+        // slowdown
+        std::thread::sleep(std::time::Duration::from_micros(10));
     }
 }
