@@ -93,6 +93,10 @@ impl GameLevel {
         self.level.get_mut(index)
     }
 
+    pub unsafe fn get_tile_mut_unchecked(&mut self, index: usize) -> &mut Tile {
+        self.level.get_unchecked_mut(index)
+    }
+
     fn is_tile_in_level_bounds(&self, x: usize, y: usize) -> bool {
         // hide dimensional logic here
         let d = self.level_coordinates();

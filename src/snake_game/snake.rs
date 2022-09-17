@@ -111,14 +111,11 @@ impl SnakeBehavior for SnakeUnbounded {
         let mut delete_tail_end = true;
 
         let next_tile = match movement_result {
-            MovementResult::Ok(tile) => level
-                .get_tile_mut(tile.get_index())
-                .ok_or(GameError::InvalidInternalState)?,
+            // get unchecked is safe - tile exists
+            MovementResult::Ok(tile) => unsafe { level.get_tile_mut_unchecked(tile.get_index()) },
             MovementResult::GrowOn(tile) => {
                 delete_tail_end = false; // make snake grow by one tile
-                level
-                    .get_tile_mut(tile.get_index())
-                    .ok_or(GameError::InvalidInternalState)?
+                unsafe { level.get_tile_mut_unchecked(tile.get_index()) }
             }
             MovementResult::SnakeCollision => return Err(GameError::GameOver),
             // "globe" level behavior logic
