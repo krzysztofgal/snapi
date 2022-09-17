@@ -26,11 +26,6 @@ impl SnakeUnbounded {
         }
     }
 
-    fn grow_on(&mut self, tile: &mut Tile) {
-        tile.set_to(TileType::Snake);
-        self.tail.push_front(tile.get_index());
-    }
-
     fn try_move_to<'l>(&self, to_tile: &Option<&'l Tile>) -> MovementResult<'l> {
         match to_tile {
             Some(tile) => match tile.tile_type() {
@@ -115,20 +110,15 @@ impl SnakeBehavior for SnakeUnbounded {
         // normal movement - true, set to false on snake grow.
         let mut delete_tail_end = true;
 
-        match movement_result {
-            MovementResult::Ok(tile) => {
-                let tile = level
-                    .get_tile_mut(tile.get_index())
-                    .ok_or(GameError::InvalidInternalState)?;
-                tile.set_to(TileType::Snake);
-                self.tail.push_front(tile.get_index());
-            }
+        let next_tile = match movement_result {
+            MovementResult::Ok(tile) => level
+                .get_tile_mut(tile.get_index())
+                .ok_or(GameError::InvalidInternalState)?,
             MovementResult::GrowOn(tile) => {
-                let tile = level
+                delete_tail_end = false; // make snake grow by one tile
+                level
                     .get_tile_mut(tile.get_index())
-                    .ok_or(GameError::InvalidInternalState)?;
-                self.grow_on(tile);
-                delete_tail_end = false;
+                    .ok_or(GameError::InvalidInternalState)?
             }
             MovementResult::SnakeCollision => return Err(GameError::GameOver),
             // "globe" level behavior logic
@@ -136,18 +126,18 @@ impl SnakeBehavior for SnakeUnbounded {
                 let head_pos = level.get_tile_position(head);
                 let level_dim = level.level_coordinates();
 
-                let next_tile = match self.movement_direction {
+                match self.movement_direction {
                     Up => level.get_tile_mut_on(head_pos.x, level_dim.y_max),
                     Down => level.get_tile_mut_on(head_pos.x, level_dim.y_min),
                     Left => level.get_tile_mut_on(level_dim.x_max, head_pos.y),
                     Right => level.get_tile_mut_on(level_dim.x_min, head_pos.y),
                 }
-                .ok_or(GameError::InvalidInternalState)?;
-
-                next_tile.set_to(TileType::Snake);
-                self.tail.push_front(next_tile.get_index())
+                .ok_or(GameError::InvalidInternalState)?
             }
-        }
+        };
+
+        next_tile.set_to(TileType::Snake);
+        self.tail.push_front(next_tile.get_index());
 
         // delete last segment
         if delete_tail_end {

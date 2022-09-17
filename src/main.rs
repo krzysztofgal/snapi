@@ -31,6 +31,7 @@ async fn main() {
     let app_state = Arc::new(AppState::default());
     let (shutdown_sig, shutdown_recv) = tokio::sync::oneshot::channel::<()>();
 
+    // game thread
     let thread_app_state = Arc::clone(&app_state);
     std::thread::spawn(move || loop {
         use snake_game::GameError;
