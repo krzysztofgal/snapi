@@ -2,7 +2,7 @@ mod snake_game;
 
 use axum::{
     extract::Path,
-    http::StatusCode,
+    http::{header, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Extension, Router,
@@ -66,9 +66,12 @@ async fn main() {
         .unwrap();
 }
 
+static LEVEL_TEMPLATE: &str = include_str!("../level.html");
+
 async fn handle_snake_display(Extension(app): Extension<Arc<AppState>>) -> impl IntoResponse {
     let level_display = app.level_display.lock().await;
-    level_display.to_owned()
+    let output_html = LEVEL_TEMPLATE.replace("{{ level }}", &level_display);
+    ([(header::CONTENT_TYPE, "text/html")], output_html)
 }
 
 #[derive(serde::Deserialize)]
