@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
 
 static LISTEN_ADDR: &str = "0.0.0.0:3000";
-static FRAME_TIME: std::time::Duration = std::time::Duration::from_secs(1);
+static FRAME_TIME: std::time::Duration = std::time::Duration::from_millis(200);
 const SNAKE_TAIL_SIZE: usize = 2; // snake len = head + tail size
 const MAX_FRUITS: usize = 5;
 const NEW_FRUIT_CHANCE: f64 = 0.1; // 10% on each move
