@@ -32,6 +32,7 @@ async fn main() {
     let app_state = Arc::new(AppState::default());
     let (shutdown_sig, shutdown_recv) = oneshot::channel::<()>();
     let (game_exit_sig, game_exit_recv) = mpsc::channel::<()>();
+    let (preview_send, preview_recv) = mpsc::channel::<String>();
 
     // game thread
     let thread_app_state = Arc::clone(&app_state);
@@ -39,7 +40,11 @@ async fn main() {
         use snake_game::GameError;
 
         println!("New Game");
-        if let Err(err) = game_loop(thread_app_state.as_ref(), &game_exit_recv) {
+        if let Err(err) = game_loop(
+            thread_app_state.as_ref(),
+            &game_exit_recv,
+            preview_send.clone(),
+        ) {
             match err {
                 GameError::RenderingError | GameError::InvalidInternalState => {
                     eprintln!("{err}");
@@ -53,6 +58,14 @@ async fn main() {
             println!("Game thread shutdown.");
             break;
         }
+    });
+
+    // terminal renderer thread
+    std::thread::spawn(|| {
+        if let Err(err) = render_game_in_terminal(preview_recv) {
+            eprintln!("Preview rendering: {err}");
+        }
+        println!("Game preview thread shutdown.");
     });
 
     let app = Router::new()
@@ -135,6 +148,7 @@ async fn handle_snake_direction(
 fn game_loop<T>(
     app_state: &AppState,
     end_sig: &mpsc::Receiver<T>,
+    preview_send: mpsc::Sender<String>,
 ) -> Result<(), snake_game::GameError> {
     use snake_game::{
         fruit::FruitRandomLimited, renderer::GameDisplayToString, snake::SnakeUnbounded, Game,
@@ -151,6 +165,7 @@ fn game_loop<T>(
     let renderer = GameDisplayToString;
     // initial render
     let output = game.render(&renderer)?;
+    preview_send.send(output.to_owned()).ok();
     {
         let mut display = app_state.level_display.blocking_lock();
         *display = output;
@@ -214,10 +229,37 @@ fn game_loop<T>(
             game.try_move()?;
 
             let output = game.render(&renderer)?;
+            preview_send.send(output.to_owned()).ok();
             let mut display = app_state.level_display.blocking_lock();
             *display = output;
         }
         // slowdown
         std::thread::sleep(std::time::Duration::from_micros(10));
     }
+}
+
+fn render_game_in_terminal(output_recv: mpsc::Receiver<String>) -> std::io::Result<()> {
+    use crossterm::{cursor, execute, style, terminal};
+    use std::io::{stdout, Write};
+    let mut stdout = stdout();
+
+    // block thread until new output is available
+    // err on recv means channel is closed - game exit
+    while let Ok(output) = output_recv.recv() {
+        execute!(
+            stdout,
+            cursor::SavePosition,
+            terminal::Clear(terminal::ClearType::FromCursorDown),
+            style::Print(&output),
+            cursor::RestorePosition,
+        )?;
+
+        stdout.flush()?;
+    }
+
+    // clear display
+    execute!(stdout, terminal::Clear(terminal::ClearType::FromCursorDown))?;
+    stdout.flush()?;
+
+    Ok(())
 }
