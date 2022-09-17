@@ -1,3 +1,4 @@
+mod helper;
 mod snake_game;
 
 use axum::{
@@ -8,7 +9,6 @@ use axum::{
     Extension, Router,
 };
 use snake_game::MovementDirection;
-use std::collections::HashMap;
 use std::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
@@ -196,18 +196,8 @@ fn game_loop<T>(
 
                 // pick random five
                 let selected = available_moves.choose_multiple(&mut r, 5).cloned();
-                let mut selected_count = HashMap::with_capacity(4);
-                for mov in selected {
-                    let entry = selected_count.entry(mov).or_insert(0);
-                    *entry += 1;
-                }
-                let (_, most_occurrences) = selected_count
-                    .iter()
-                    .max_by(|(_, a), (_, b)| a.cmp(b))
-                    // unwrap is ok - cannot be empty
-                    .unwrap();
-                // drop borrow
-                let most_occurrences = *most_occurrences;
+                let (most_occurrences, mut selected_count) =
+                    helper::get_most_move_occurrences_in(selected);
 
                 // retain moves with most occurrences
                 let selected = selected_count
