@@ -13,8 +13,8 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
 
-static LISTEN_ADDR: &str = "0.0.0.0:3000";
-static FRAME_TIME: std::time::Duration = std::time::Duration::from_millis(200);
+const LISTEN_ADDR: &str = "0.0.0.0:3000";
+const FRAME_TIME: std::time::Duration = std::time::Duration::from_millis(200);
 const SNAKE_TAIL_SIZE: usize = 2; // snake len = head + tail size
 const MAX_FRUITS: usize = 5;
 const NEW_FRUIT_CHANCE: f64 = 0.1; // 10% on each move
@@ -36,28 +36,30 @@ async fn main() {
 
     // game thread
     let thread_app_state = Arc::clone(&app_state);
-    std::thread::spawn(move || loop {
-        use snake_game::GameError;
+    std::thread::spawn(move || {
+        loop {
+            use snake_game::GameError;
 
-        println!("New Game");
-        if let Err(err) = game_loop(
-            thread_app_state.as_ref(),
-            &game_exit_recv,
-            preview_send.clone(),
-        ) {
-            match err {
-                GameError::RenderingError | GameError::InvalidInternalState => {
-                    eprintln!("{err}");
-                    // shutdown server
-                    shutdown_sig.send(()).unwrap();
-                    break;
+            println!("New Game");
+            if let Err(err) = game_loop(
+                thread_app_state.as_ref(),
+                &game_exit_recv,
+                preview_send.clone(),
+            ) {
+                match err {
+                    GameError::RenderingError | GameError::InvalidInternalState => {
+                        eprintln!("{err}");
+                        // shutdown server
+                        shutdown_sig.send(()).ok();
+                        break;
+                    }
+                    _ => println!("{err}"),
                 }
-                _ => println!("{err}"),
+            } else {
+                break;
             }
-        } else {
-            println!("Game thread shutdown.");
-            break;
         }
+        println!("Game thread shutdown.");
     });
 
     // terminal renderer thread

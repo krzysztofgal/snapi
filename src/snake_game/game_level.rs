@@ -145,7 +145,7 @@ impl GameLevel {
 
     // put fruit on arbitrary position (intended for tests)
     // may fail silently
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn put_fruit(&mut self, x: usize, y: usize) {
         if let Some(tile) = self.get_tile_mut_on(x, y) {
             if matches!(tile.tile_type(), TileType::Empty) {

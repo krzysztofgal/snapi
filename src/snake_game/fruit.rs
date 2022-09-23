@@ -28,8 +28,8 @@ impl FruitBehavior for FruitRandomLimited {
 
         // if under limit then draw a chance to put one fruit
         if count_fruits < self.limit {
-            let draw = thread_rng().gen_range(0.01..1.0);
-            if self.chance >= draw {
+            let draw = thread_rng().gen_range(0.01..=1.0);
+            if draw <= self.chance {
                 let empty_tiles = level
                     .level()
                     .iter()
