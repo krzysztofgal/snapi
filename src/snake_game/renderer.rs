@@ -16,7 +16,7 @@ impl<S: SnakeBehavior, F: FruitBehavior> GameDisplay<S, F> for GameDisplayToStri
 
         let mut output = String::with_capacity(tiles.len());
 
-        // vertical "wall"
+        // main part of horizontal "wall"
         let v_wall = (level_box.x_min..=level_box.x_max)
             .into_iter()
             .map(|_| '#')
